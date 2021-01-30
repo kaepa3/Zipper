@@ -38,7 +38,7 @@ func compress(buf io.Writer, files []string) {
 	for _, file := range files {
 		info, _ := os.Stat(file)
 		val, _ := info.Sys().(*syscall.Stat_t)
-		fmt.Println(val)
+		fmt.Println(val.Gen)
 		fmt.Println(info.Name())
 
 		hdr, _ := zip.FileInfoHeader(info)
