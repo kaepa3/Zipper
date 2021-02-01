@@ -3,11 +3,10 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/xml"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"syscall"
 
 	"github.com/BurntSushi/toml"
 )
@@ -15,14 +14,15 @@ import (
 func main() {
 	conf := initConfig()
 	fmt.Println(conf)
-	zf, _ := os.Create(conf.OutputName)
-	defer zf.Close()
-	compress(zf, conf.Files)
+	version, _ := getVersion(conf)
+	fmt.Println(version)
+	compress(conf, version)
 }
 
 type Config struct {
-	OutputName string
-	Files      []string
+	OutputName  string
+	ProjectFile string
+	Files       []string
 }
 
 func initConfig() *Config {
@@ -32,15 +32,33 @@ func initConfig() *Config {
 
 }
 
-func compress(buf io.Writer, files []string) {
-	w := zip.NewWriter(buf)
+type Properties struct {
+	Version string
+}
+type Project struct {
+	PropertyGroup Properties
+}
 
-	for _, file := range files {
+func getVersion(c *Config) (string, error) {
+	var origin Project
+	data, _ := ioutil.ReadFile(c.ProjectFile)
+	err := xml.Unmarshal(data, &origin)
+	if err != nil {
+		return "", err
+	}
+	return origin.PropertyGroup.Version, nil
+
+}
+
+func compress(c *Config, ver string) {
+	filepath := c.OutputName + "_" + ver + ".zip"
+	zf, _ := os.Create(filepath)
+	defer zf.Close()
+	w := zip.NewWriter(zf)
+
+	for _, file := range c.Files {
 		info, _ := os.Stat(file)
-		val, _ := info.Sys().(*syscall.Stat_t)
-		fmt.Println(val.Gen)
 		fmt.Println(info.Name())
-
 		hdr, _ := zip.FileInfoHeader(info)
 		hdr.Name = "files/" + file
 		f, err := w.CreateHeader(hdr)
