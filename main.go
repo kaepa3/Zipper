@@ -57,7 +57,10 @@ func compress(c *Config, ver string) {
 	w := zip.NewWriter(zf)
 
 	for _, file := range c.Files {
-		info, _ := os.Stat(file)
+		info, err := os.Stat(file)
+		if err != nil {
+			panic(err)
+		}
 		fmt.Println(info.Name())
 		hdr, _ := zip.FileInfoHeader(info)
 		hdr.Name = "files/" + file
