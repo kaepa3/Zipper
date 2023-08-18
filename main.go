@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,7 +58,7 @@ Loop:
 		case v := <-ch:
 			fmt.Println(v.Path)
 			hdr, _ := zip.FileInfoHeader(v.Info)
-			hdr.Name = "files/" + v.Path
+			hdr.Name = v.Path
 			f, err := w.CreateHeader(hdr)
 			if err != nil {
 				panic(err)
@@ -115,7 +114,6 @@ func inputFiles(path string, ch chan<- FInfo) {
 		}
 		for _, v := range files {
 			cPath := filepath.Join(path, v.Name())
-			log.Println(cPath + ":start")
 			inputFiles(cPath, ch)
 		}
 	} else {
