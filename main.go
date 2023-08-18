@@ -6,7 +6,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -47,7 +50,30 @@ func getVersion(c *Config) (string, error) {
 		return "", err
 	}
 	return origin.PropertyGroup.Version, nil
+}
 
+func writeZip(w *zip.Writer, done chan struct{}, ch chan FInfo) {
+Loop:
+	for {
+		select {
+		case v := <-ch:
+			fmt.Println(v.Path)
+			hdr, _ := zip.FileInfoHeader(v.Info)
+			hdr.Name = "files/" + v.Path
+			f, err := w.CreateHeader(hdr)
+			if err != nil {
+				panic(err)
+			}
+			body, err := ioutil.ReadFile(v.Path)
+			if err != nil {
+				panic(err.Error() + ":" + v.Path)
+			}
+			f.Write(body)
+			break
+		case <-done:
+			break Loop
+		}
+	}
 }
 
 func compress(c *Config, ver string) {
@@ -57,28 +83,44 @@ func compress(c *Config, ver string) {
 	w := zip.NewWriter(zf)
 
 	for _, file := range c.Files {
-		info, err := os.Stat(file)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(info.Name())
-		hdr, _ := zip.FileInfoHeader(info)
-		hdr.Name = "files/" + file
-		f, err := w.CreateHeader(hdr)
-		if err != nil {
-			panic(err)
-		}
-
-		body, err := ioutil.ReadFile(file)
-		if err != nil {
-			panic(err)
-		}
-		f.Write(body)
+		ch := make(chan FInfo)
+		done := make(chan struct{})
+		go func() {
+			inputFiles(file, ch)
+			close(done)
+		}()
+		writeZip(w, done, ch)
 	}
 
 	w.Close()
-
 	return
+}
+
+type FInfo struct {
+	Path string
+	Info os.FileInfo
+}
+
+func inputFiles(path string, ch chan<- FInfo) {
+	info, err := os.Stat(path)
+	if err != nil {
+		s := strings.Join([]string{err.Error(), path}, ",")
+		panic(s)
+	}
+	if info.IsDir() {
+		files, err := ioutil.ReadDir(path)
+		if err != nil {
+			s := strings.Join([]string{err.Error(), ":", path}, ":")
+			panic(s)
+		}
+		for _, v := range files {
+			cPath := filepath.Join(path, v.Name())
+			log.Println(cPath + ":start")
+			inputFiles(cPath, ch)
+		}
+	} else {
+		ch <- FInfo{Path: path, Info: info}
+	}
 }
 
 func save(b *bytes.Buffer) error {
