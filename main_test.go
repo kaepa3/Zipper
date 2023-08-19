@@ -24,6 +24,23 @@ func Test_compress(t *testing.T) {
 	compress(&c, "ver")
 }
 
+func Test_compress2(t *testing.T) {
+	dirName := "../Zipper/test"
+	os.Mkdir(dirName, os.ModePerm)
+
+	fileName := "test.txt"
+	fPath := filepath.Join(dirName, fileName)
+	log.Println(fPath)
+	makeTextFile(t, fPath)
+	dirName2 := filepath.Join(dirName, "child")
+	os.Mkdir(dirName2, os.ModePerm)
+	c := Config{
+		OutputName: "ziptest2",
+		Files:      []string{fPath, dirName2},
+	}
+	compress(&c, "ver")
+}
+
 func makeTextFile(t *testing.T, fPath string) {
 	fp, err := os.Create(fPath)
 	defer fp.Close()

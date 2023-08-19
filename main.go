@@ -58,7 +58,7 @@ Loop:
 		case v := <-ch:
 			fmt.Println(v.Path)
 			hdr, _ := zip.FileInfoHeader(v.Info)
-			hdr.Name = v.Path
+			hdr.Name = strings.Replace(v.Path, "../", "", -1)
 			f, err := w.CreateHeader(hdr)
 			if err != nil {
 				panic(err)
