@@ -21,10 +21,15 @@ func main() {
 	compress(conf, version)
 }
 
+type DocumentInfomation struct {
+	InputName  string
+	OutputName string
+}
+
 type Config struct {
 	OutputName  string
 	ProjectFile string
-	Files       []string
+	Files       []DocumentInfomation
 }
 
 func initConfig() *Config {
@@ -51,21 +56,32 @@ func getVersion(c *Config) (string, error) {
 	return origin.PropertyGroup.Version, nil
 }
 
+func CreateFileNAme(dInfo DocumentInfomation) string {
+
+	outName := dInfo.OutputName
+	if outName == "" {
+		outName = dInfo.InputName
+	}
+	outName = strings.Replace(outName, "../", "", -1)
+	outName = strings.Replace(outName, "..\\", "", -1)
+	return outName
+}
+
 func writeZip(w *zip.Writer, done chan struct{}, ch chan FInfo) {
 Loop:
 	for {
 		select {
 		case v := <-ch:
-			fmt.Println(v.Path)
+			fmt.Println(v.Doc.InputName)
 			hdr, _ := zip.FileInfoHeader(v.Info)
-			hdr.Name = strings.Replace(v.Path, "../", "", -1)
+			hdr.Name = CreateFileNAme(v.Doc)
 			f, err := w.CreateHeader(hdr)
 			if err != nil {
 				panic(err)
 			}
-			body, err := ioutil.ReadFile(v.Path)
+			body, err := ioutil.ReadFile(v.Doc.InputName)
 			if err != nil {
-				panic(err.Error() + ":" + v.Path)
+				panic(err.Error() + ":" + v.Doc.InputName)
 			}
 			f.Write(body)
 			break
@@ -81,11 +97,11 @@ func compress(c *Config, ver string) {
 	defer zf.Close()
 	w := zip.NewWriter(zf)
 
-	for _, file := range c.Files {
+	for _, docInfo := range c.Files {
 		ch := make(chan FInfo)
 		done := make(chan struct{})
 		go func() {
-			inputFiles(file, ch)
+			inputFiles(docInfo, ch)
 			close(done)
 		}()
 		writeZip(w, done, ch)
@@ -96,28 +112,29 @@ func compress(c *Config, ver string) {
 }
 
 type FInfo struct {
-	Path string
+	Doc  DocumentInfomation
 	Info os.FileInfo
 }
 
-func inputFiles(path string, ch chan<- FInfo) {
-	info, err := os.Stat(path)
+func inputFiles(docInfo DocumentInfomation, ch chan<- FInfo) {
+	info, err := os.Stat(docInfo.InputName)
 	if err != nil {
-		s := strings.Join([]string{err.Error(), path}, ",")
+		s := strings.Join([]string{err.Error(), docInfo.InputName}, ",")
 		panic(s)
 	}
 	if info.IsDir() {
-		files, err := ioutil.ReadDir(path)
+		files, err := ioutil.ReadDir(docInfo.InputName)
 		if err != nil {
-			s := strings.Join([]string{err.Error(), ":", path}, ":")
+			s := strings.Join([]string{err.Error(), ":", docInfo.InputName}, ":")
 			panic(s)
 		}
 		for _, v := range files {
-			cPath := filepath.Join(path, v.Name())
-			inputFiles(cPath, ch)
+			iPath := filepath.Join(docInfo.InputName, v.Name())
+			oPath := filepath.Join(docInfo.OutputName, v.Name())
+			inputFiles(DocumentInfomation{InputName: iPath, OutputName: oPath}, ch)
 		}
 	} else {
-		ch <- FInfo{Path: path, Info: info}
+		ch <- FInfo{Doc: docInfo, Info: info}
 	}
 }
 

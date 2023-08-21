@@ -19,7 +19,10 @@ func Test_compress(t *testing.T) {
 	os.Mkdir(dirName2, os.ModePerm)
 	c := Config{
 		OutputName: "ziptest",
-		Files:      []string{fPath, dirName2},
+		Files: []DocumentInfomation{
+			DocumentInfomation{InputName: fPath},
+			DocumentInfomation{InputName: dirName2},
+		},
 	}
 	compress(&c, "ver")
 }
@@ -36,7 +39,10 @@ func Test_compress2(t *testing.T) {
 	os.Mkdir(dirName2, os.ModePerm)
 	c := Config{
 		OutputName: "ziptest2",
-		Files:      []string{fPath, dirName2},
+		Files: []DocumentInfomation{
+			DocumentInfomation{InputName: fPath},
+			DocumentInfomation{InputName: dirName2},
+		},
 	}
 	compress(&c, "ver")
 }
